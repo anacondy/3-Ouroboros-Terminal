@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OUROBOROS // SILENT_PROTOCOL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Cinzel:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --neon-pink: #ff0040;
+            --neon-cyan: #00f0ff;
+            --deep-void: #050505;
+            --glass-bg: rgba(20, 10, 25, 0.4);
+            --glass-border: rgba(255, 0, 64, 0.3);
+        }
+
+        body {
+            background-color: var(--deep-void);
+            color: #e0e0e0;
+            font-family: 'Share Tech Mono', monospace;
+            overflow: hidden;
+            margin: 0;
+            height: 100vh;
+            user-select: none;
+            cursor: crosshair;
+        }
+
+        /* --- IMMERSIVE OVERLAYS --- */
+        .noise-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 90; opacity: 0.08;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(0,0,0,0.5) 50%);
+            background-size: 100% 4px;
+            z-index: 91; pointer-events: none;
+        }
+
+        .vignette {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 40%, #000 130%);
+            z-index: 92; pointer-events: none;
+        }
+
+        /* --- GLASS UI --- */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(8px) contrast(1.2);
+            -webkit-backdrop-filter: blur(8px) contrast(1.2);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), inset 0 0 10px rgba(255, 0, 64, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        /* --- THE FLICKERING LINE --- */
+        @keyframes nervous-line {
+            0% { width: 100%; opacity: 1; box-shadow: 0 0 2px var(--neon-pink); }
+            5% { width: 98%; opacity: 0.8; }
+            10% { width: 100%; opacity: 1; }
+            40% { width: 30%; opacity: 0.4; box-shadow: 0 10px 20px rgba(255, 0, 64, 0); }
+            42% { width: 40%; opacity: 0.6; box-shadow: 0 20px 10px rgba(255, 0, 64, 0.5); } 
+            44% { width: 30%; opacity: 0.4; box-shadow: 0 10px 20px rgba(255, 0, 64, 0); }
+            50% { width: 100%; opacity: 1; }
+            70% { width: 100%; opacity: 1; }
+            80% { width: 90%; opacity: 0.7; }
+            82% { width: 100%; opacity: 1; }
+            100% { width: 100%; opacity: 1; }
+        }
+
+        .haunted-line {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-pink), transparent);
+            margin: 1.5rem 0;
+            animation: nervous-line 4s infinite cubic-bezier(0.1, 0.7, 1.0, 0.1);
+            position: relative;
+        }
+
+        /* --- TRANSITIONS --- */
+        .view-section {
+            display: none;
+            opacity: 0;
+            filter: blur(10px);
+            transform: scale(0.98);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 100%;
+            height: 100%;
+        }
+        
+        .view-active {
+            display: flex;
+            opacity: 1;
+            filter: blur(0);
+            transform: scale(1);
+        }
+
+        /* Glitch transition effect class */
+        .glitching-out {
+            animation: screen-tear 0.4s steps(3) forwards;
+        }
+
+        @keyframes screen-tear {
+            0% { transform: translate(0) skew(0); filter: hue-rotate(0deg); }
+            20% { transform: translate(-10px, 5px) skew(10deg); filter: hue-rotate(90deg) invert(1); }
+            40% { transform: translate(10px, -5px) skew(-10deg); filter: hue-rotate(-90deg); }
+            60% { transform: translate(0) skew(0); filter: hue-rotate(0deg); opacity: 1;}
+            100% { transform: translate(0) skew(0); opacity: 1;}
+        }
+
+        /* --- GAME & INTERACTIVE --- */
+        .rift-target {
+            position: absolute;
+            background: radial-gradient(circle, #fff, var(--neon-pink));
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 15px var(--neon-pink);
+            animation: pulse-rift 0.8s infinite alternate;
+        }
+        
+        @keyframes pulse-rift {
+            from { transform: scale(1); opacity: 0.7; }
+            to { transform: scale(1.3); opacity: 1; filter: drop-shadow(0 0 5px white); }
+        }
+
+        .archive-item {
+            position: relative;
+            padding-left: 10px;
+            transition: 0.2s;
+        }
+        .archive-item:hover {
+            color: var(--neon-pink);
+            text-shadow: 2px 0 5px var(--neon-pink);
+            transform: translateX(10px);
+            background: rgba(255, 0, 64, 0.1);
+        }
+
+        /* Typography */
+        .font-cinzel { font-family: 'Cinzel', serif; }
+        .font-tech { font-family: 'Share Tech Mono', monospace; }
+
+        /* Canvas Background */
+        #bg-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            z-index: 1;
+        }
+        
+        /* Loading/Interaction overlay */
+        #interact-overlay {
+            position: fixed; inset: 0; z-index: 100;
+            background: black;
+            display: flex; justify-content: center; align-items: center;
+            color: var(--neon-pink);
+            font-family: 'Cinzel', serif;
+            letter-spacing: 5px;
+            cursor: pointer;
+            transition: opacity 1s;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- AUDIO CONTEXT START OVERLAY -->
+    <div id="interact-overlay" onclick="window.startExperience()">
+        <div class="text-center">
+            <h1 class="text-2xl animate-pulse">CLICK TO SYNC NEURAL LINK</h1>
+            <p class="text-[10px] mt-4 text-gray-500 font-mono">AUDIO HARDWARE REQUIRED</p>
+        </div>
+    </div>
+
+    <!-- BACKGROUND -->
+    <canvas id="bg-canvas"></canvas>
+    <div class="noise-overlay"></div>
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+
+    <!-- MAIN UI -->
+    <div class="relative z-10 w-full h-full flex flex-col items-center justify-center p-4" id="main-container">
+        
+        <!-- NAV -->
+        <nav class="absolute top-8 w-full max-w-5xl flex justify-between items-center px-6 z-50 mix-blend-screen">
+            <div class="text-xs text-[#ff0040] font-bold tracking-[0.3em] opacity-80 animate-pulse">
+                ERR_CONNECTION_UNSTABLE
+            </div>
+            <div class="flex gap-6">
+                <button onclick="window.navClick('terminal')" class="text-sm font-tech text-gray-400 hover:text-[#ff0040] hover:underline decoration-1 underline-offset-4 transition-all">TERMINAL</button>
+                <button onclick="window.navClick('game')" class="text-sm font-tech text-gray-400 hover:text-[#ff0040] hover:underline decoration-1 underline-offset-4 transition-all">THE_ROOM</button>
+                <button onclick="window.navClick('archives')" class="text-sm font-tech text-gray-400 hover:text-[#ff0040] hover:underline decoration-1 underline-offset-4 transition-all">ARCHIVES</button>
+            </div>
+        </nav>
+
+        <!-- VIEW 1: TERMINAL -->
+        <section id="view-terminal" class="view-section view-active flex-col items-center justify-center">
+            <div class="glass-panel w-full max-w-4xl p-10 grid grid-cols-1 md:grid-cols-2 gap-12 relative">
+                
+                <!-- Eye Container -->
+                <div class="relative border border-[#ff0040]/30 p-1 bg-black/60 aspect-square flex items-center justify-center overflow-hidden">
+                    <div class="absolute top-2 left-2 text-[9px] text-[#ff0040] tracking-widest">SUBJECT_82</div>
+                    <svg id="main-eye" viewBox="0 0 200 200" class="w-full h-full">
+                        <defs>
+                            <radialGradient id="irisGrad">
+                                <stop offset="40%" stop-color="#2a0010"/>
+                                <stop offset="90%" stop-color="#ff0040"/>
+                            </radialGradient>
+                            <filter id="glow">
+                                <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                        </defs>
+                        
+                        <!-- Eyeball Group -->
+                        <g id="eyeball-group" transform-origin="100 100">
+                            <!-- Sclera -->
+                            <path d="M10,100 Q100,20 190,100 Q100,180 10,100 Z" fill="#0a0a0a" stroke="#444" stroke-width="1"/>
+                            <path d="M10,100 Q100,30 190,100" fill="none" stroke="#ff0040" stroke-width="0.5" opacity="0.4"/>
+                            
+                            <!-- Iris Group (Moves independently) -->
+                            <g id="iris-group">
+                                <circle cx="100" cy="100" r="45" fill="url(#irisGrad)" opacity="0.8" filter="url(#glow)"/>
+                                <circle cx="100" cy="100" r="43" fill="none" stroke="#ff0040" stroke-width="1" stroke-dasharray="4 2" opacity="0.5"/>
+                                <!-- Pupil -->
+                                <circle cx="100" cy="100" r="15" fill="#000"/>
+                                <!-- Glint -->
+                                <circle cx="115" cy="85" r="4" fill="#fff" opacity="0.6"/>
+                            </g>
+                        </g>
+                    </svg>
+                </div>
+
+                <!-- Text Content -->
+                <div class="flex flex-col justify-center">
+                    <h1 class="font-cinzel text-5xl text-[#ff0040] mb-2 tracking-tighter drop-shadow-[0_0_10px_rgba(255,0,64,0.5)]">OUROBOROS</h1>
+                    <div class="text-xs font-tech text-gray-500 mb-6">SYS.VER.6.6.6 // CRITICAL FAILURE</div>
+                    
+                    <p class="font-tech text-sm text-gray-300 leading-7">
+                        The cycle is broken. The entity has breached the frosted barrier. We are watching a memory of a ghost.
+                    </p>
+
+                    <!-- THE HAUNTED LINE -->
+                    <div class="haunted-line"></div>
+
+                    <div class="font-mono text-[10px] text-[#ff0040] space-y-2 opacity-80 mt-4">
+                        <p>> DETECTING_LIFE_SIGNS... <span class="text-white">NEGATIVE</span></p>
+                        <p>> REALITY_ANCHOR... <span class="animate-pulse">FAILING</span></p>
+                        <p>> EXORCISM_REQUIRED</p>
+                    </div>
+
+                    <button onclick="window.navClick('game')" class="mt-8 border border-[#ff0040] text-[#ff0040] py-3 hover:bg-[#ff0040] hover:text-black transition-all duration-300 font-cinzel tracking-widest text-sm relative overflow-hidden group">
+                        <span class="relative z-10">ENTER THE VOID</span>
+                        <div class="absolute inset-0 bg-[#ff0040] transform translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- VIEW 2: THE ROOM (GAME) -->
+        <section id="view-game" class="view-section flex-col items-center justify-center">
+            <div class="glass-panel w-full max-w-5xl h-[75vh] flex flex-col relative overflow-hidden border-[#ff0040]">
+                
+                <!-- Room Header -->
+                <div class="absolute top-0 left-0 w-full p-4 flex justify-between items-center bg-gradient-to-b from-black to-transparent z-20">
+                    <div class="text-[#ff0040] font-cinzel text-xl">CONTAINMENT CHAMBER</div>
+                    <div class="flex flex-col items-end">
+                        <span class="text-[10px] text-gray-400">SANITY INTEGRITY</span>
+                        <div class="w-32 h-2 bg-gray-900 border border-gray-700 mt-1">
+                            <div id="sanity-fill" class="h-full bg-[#00f0ff] w-full transition-all duration-300"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Game Canvas Area -->
+                <div id="game-container" class="w-full h-full relative cursor-crosshair bg-black/80">
+                    <!-- Overlay Message -->
+                    <div id="game-overlay" class="absolute inset-0 flex flex-col items-center justify-center z-30 bg-black/90 transition-opacity duration-500">
+                        <h2 class="text-3xl font-cinzel text-[#ff0040] mb-4">THE RITUAL</h2>
+                        <p class="text-gray-400 font-tech text-sm mb-8 text-center max-w-md">
+                            Click the Corruption Nodes (Orbs) before they consume your mind. 
+                            <br>Do not let the Sanity meter reach zero.
+                        </p>
+                        <button onclick="window.startGame()" class="px-8 py-2 border border-white hover:bg-white hover:text-black transition font-tech tracking-widest">BEGIN</button>
+                    </div>
+
+                    <!-- Ghost/Horror Visuals appear here dynamically -->
+                    <div id="horror-layer" class="absolute inset-0 pointer-events-none mix-blend-overlay opacity-0 transition-opacity duration-1000"></div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- VIEW 3: ARCHIVES -->
+        <section id="view-archives" class="view-section flex-col items-center justify-center">
+            <div class="w-full max-w-4xl h-[70vh] grid grid-cols-3 gap-6">
+                
+                <!-- File List -->
+                <div class="glass-panel col-span-1 p-6 overflow-y-auto custom-scrollbar">
+                    <h3 class="text-[#ff0040] text-sm font-bold border-b border-[#ff0040] pb-2 mb-4 tracking-widest">DATABASE</h3>
+                    <ul class="space-y-3 font-tech text-xs text-gray-400">
+                        <li class="archive-item cursor-pointer" onclick="window.playDataSound()">ENTRY_001_GENESIS</li>
+                        <li class="archive-item cursor-pointer" onclick="window.playDataSound()">ENTRY_004_THE_EYE</li>
+                        <li class="archive-item cursor-pointer" onclick="window.playDataSound()">PATIENT_LOG_402</li>
+                        <li class="archive-item cursor-pointer text-red-700" onclick="window.playErrorSound()">[CORRUPTED_DATA]</li>
+                        <li class="archive-item cursor-pointer text-red-700" onclick="window.playErrorSound()">[CORRUPTED_DATA]</li>
+                        <li class="archive-item cursor-pointer" onclick="window.playDataSound()">FINAL_TESTAMENT</li>
+                        <li class="archive-item cursor-pointer" onclick="window.playDataSound()">AUDIO_TRANSCRIPT</li>
+                    </ul>
+                </div>
+
+                <!-- Content Viewer -->
+                <div class="glass-panel col-span-2 p-8 relative flex items-center justify-center">
+                    <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjMDAwMDAwIiAvPgo8cmVjdCB3aWR0aD0iMSIgaGVpZ2h0PSIxIiBmaWxsPSIjMzMzMzMzIiAvPgo8L3N2Zz4=')] opacity-20 pointer-events-none"></div>
+                    
+                    <div class="text-center relative z-10">
+                        <div class="w-16 h-16 border-t-2 border-l-2 border-[#ff0040] absolute -top-4 -left-4"></div>
+                        <div class="w-16 h-16 border-b-2 border-r-2 border-[#ff0040] absolute -bottom-4 -right-4"></div>
+                        
+                        <h2 class="text-2xl font-cinzel text-[#ff0040] mb-4">SUBJECT 402</h2>
+                        <p class="font-serif italic text-gray-400 text-sm leading-8">
+                            "I heard the sound again. It's not coming from outside. It's coming from the wires. 
+                            The screen... it blinked at me. I'm not crazy. The pixels are rearranging themselves 
+                            when I look away. It wants me to open the door."
+                        </p>
+                        <div class="mt-8 text-[10px] font-mono text-gray-600">AUDIO ATTACHMENT: MISSING</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- AUDIO ENGINE & LOGIC -->
+    <script>
+    (function() {
+        // --- AUDIO ENGINE (Web Audio API) ---
+        const AudioEngine = {
+            ctx: null,
+            droneOsc1: null,
+            droneOsc2: null,
+            isInit: false,
+
+            init() {
+                if(this.isInit) return;
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                this.isInit = true;
+                this.startDrone();
+            },
+
+            startDrone() {
+                this.droneOsc1 = this.ctx.createOscillator();
+                this.droneOsc1.type = 'sawtooth';
+                this.droneOsc1.frequency.value = 55;
+                
+                this.droneOsc2 = this.ctx.createOscillator();
+                this.droneOsc2.type = 'sine';
+                this.droneOsc2.frequency.value = 58;
+                
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 120;
+
+                const gain = this.ctx.createGain();
+                gain.gain.value = 0.15;
+
+                this.droneOsc1.connect(filter);
+                this.droneOsc2.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                this.droneOsc1.start();
+                this.droneOsc2.start();
+            },
+
+            playClick() {
+                if(!this.isInit) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
+                
+                gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            },
+
+            playHorrorStab() {
+                if(!this.isInit) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                const filter = this.ctx.createBiquadFilter();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(440, this.ctx.currentTime); 
+                osc.frequency.linearRampToValueAtTime(311, this.ctx.currentTime + 1.5); 
+
+                filter.type = 'highpass';
+                filter.frequency.value = 1000;
+                filter.Q.value = 10;
+
+                gain.gain.setValueAtTime(0, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.05, this.ctx.currentTime + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 2);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.start();
+                osc.stop(this.ctx.currentTime + 2);
+            },
+
+            playGlitch() {
+                if(!this.isInit) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = 'sawtooth';
+                osc.frequency.value = 50 + Math.random() * 50;
+                
+                gain.gain.value = 0.1;
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                setTimeout(() => osc.stop(), 50 + Math.random() * 100);
+            }
+        };
+
+        // EXPORT GLOBALS FOR HTML ONCLICK
+        window.startExperience = function() {
+            AudioEngine.init();
+            const overlay = document.getElementById('interact-overlay');
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                if(overlay) overlay.remove();
+            }, 1000);
+        };
+
+        window.playDataSound = function() { AudioEngine.playClick(); };
+        window.playErrorSound = function() { AudioEngine.playGlitch(); };
+
+        // --- NAVIGATION & TRANSITIONS ---
+        window.navClick = function(viewId) {
+            AudioEngine.playClick();
+            
+            const current = document.querySelector('.view-active');
+            const target = document.getElementById(`view-${viewId}`);
+            
+            if (current === target) return;
+
+            document.body.classList.add('glitching-out');
+            setTimeout(() => document.body.classList.remove('glitching-out'), 400);
+
+            current.style.opacity = '0';
+            current.style.filter = 'blur(20px)';
+            
+            setTimeout(() => {
+                current.classList.remove('view-active');
+                current.style.display = 'none';
+                
+                target.style.display = 'flex';
+                void target.offsetWidth; // Force reflow
+                target.classList.add('view-active');
+                target.style.opacity = '1';
+                target.style.filter = 'blur(0)';
+            }, 300);
+
+            if(viewId !== 'game') stopGame();
+        };
+
+        // --- ENHANCED EYE TRACKING ---
+        const eyeSvg = document.getElementById('main-eye');
+        const irisGroup = document.getElementById('iris-group');
+        const eyeballGroup = document.getElementById('eyeball-group');
+
+        document.addEventListener('mousemove', (e) => {
+            if(!eyeSvg) return;
+            
+            const rect = eyeSvg.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            const angleRad = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+            const dist = Math.min(30, Math.hypot(e.clientX - centerX, e.clientY - centerY) / 8);
+
+            const irisX = Math.cos(angleRad) * dist;
+            const irisY = Math.sin(angleRad) * dist;
+            irisGroup.setAttribute('transform', `translate(${irisX}, ${irisY})`);
+
+            const deg = angleRad * (180 / Math.PI);
+            eyeballGroup.style.transform = `rotate(${deg/10}deg)`;
+        });
+
+        // --- GAME LOGIC: THE RITUAL ---
+        let gameActive = false;
+        let sanity = 100;
+        let spawnTimer;
+        let sanityTimer;
+        const gameContainer = document.getElementById('game-container');
+        const sanityFill = document.getElementById('sanity-fill');
+
+        window.startGame = function() {
+            gameActive = true;
+            sanity = 100;
+            updateSanity();
+            const overlay = document.getElementById('game-overlay');
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
+            AudioEngine.playHorrorStab();
+
+            spawnTimer = setInterval(spawnNode, 900);
+            sanityTimer = setInterval(() => {
+                sanity -= 0.5;
+                updateSanity();
+                if(sanity <= 0) endGame();
+            }, 100);
+        };
+
+        function stopGame() {
+            gameActive = false;
+            clearInterval(spawnTimer);
+            clearInterval(sanityTimer);
+            const overlay = document.getElementById('game-overlay');
+            if(overlay) {
+                overlay.style.opacity = '1';
+                overlay.style.pointerEvents = 'all';
+            }
+            if(gameContainer) {
+                gameContainer.querySelectorAll('.rift-target').forEach(el => el.remove());
+            }
+        }
+
+        function spawnNode() {
+            if(!gameActive || !gameContainer) return;
+            
+            const node = document.createElement('div');
+            node.className = 'rift-target';
+            const size = 30 + Math.random() * 30;
+            node.style.width = `${size}px`;
+            node.style.height = `${size}px`;
+            
+            const x = Math.random() * (gameContainer.clientWidth - 50);
+            const y = Math.random() * (gameContainer.clientHeight - 50);
+            
+            node.style.left = `${x}px`;
+            node.style.top = `${y}px`;
+
+            node.onmousedown = () => {
+                sanity = Math.min(100, sanity + 10);
+                updateSanity();
+                AudioEngine.playClick();
+                node.remove();
+            };
+
+            setTimeout(() => {
+                if(node.parentNode) {
+                    node.remove();
+                    sanity -= 15;
+                    AudioEngine.playGlitch();
+                    gameContainer.style.backgroundColor = 'rgba(255,0,0,0.2)';
+                    setTimeout(() => gameContainer.style.backgroundColor = 'rgba(0,0,0,0.8)', 100);
+                }
+            }, 1800);
+
+            gameContainer.appendChild(node);
+        }
+
+        function updateSanity() {
+            if(!sanityFill) return;
+            sanityFill.style.width = `${Math.max(0, sanity)}%`;
+            if(sanity < 30) {
+                sanityFill.style.backgroundColor = '#ff0000';
+                sanityFill.style.boxShadow = '0 0 10px red';
+            } else {
+                sanityFill.style.backgroundColor = '#00f0ff';
+                sanityFill.style.boxShadow = 'none';
+            }
+        }
+
+        function endGame() {
+            stopGame();
+            alert("SANITY DEPLETED. CONNECTION SEVERED.");
+        }
+
+        // --- BACKGROUND ATMOSPHERE (Canvas) ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let appWidth, appHeight; // RENAMED TO AVOID CONFLICT
+        
+        function resize() { 
+            appWidth = canvas.width = window.innerWidth; 
+            appHeight = canvas.height = window.innerHeight; 
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const particles = Array.from({length: 40}, () => ({
+            x: Math.random() * appWidth, y: Math.random() * appHeight,
+            vx: (Math.random()-0.5)*0.5, vy: (Math.random()-0.5)*0.5,
+            size: Math.random() * 150
+        }));
+
+        function animBg() {
+            ctx.clearRect(0, 0, appWidth, appHeight);
+            particles.forEach(p => {
+                p.x += p.vx; p.y += p.vy;
+                if(p.x < -200) p.x = appWidth+200; if(p.x > appWidth+200) p.x = -200;
+                if(p.y < -200) p.y = appHeight+200; if(p.y > appHeight+200) p.y = -200;
+                
+                const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                g.addColorStop(0, 'rgba(20, 0, 10, 0.08)');
+                g.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                ctx.fill();
+            });
+            requestAnimationFrame(animBg);
+        }
+        animBg();
+    })();
+    </script>
+</body>
+</html>
